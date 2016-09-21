@@ -77,6 +77,10 @@
 #define APACHE2
 #endif
 
+#if AP_MODULE_MAGIC_AT_LEAST(20110203,1)
+#define APACHE24
+#endif
+
 /* Compile time options for code generation */
 #ifdef AES
 #define _AES 1
@@ -202,11 +206,23 @@
 #include "http_protocol.h"
 
 #ifdef APACHE2
+
+
+#if !defined(APR_XtOffsetOf) || defined(APACHE24)
+#define APR_XtOffsetOf APR_OFFSETOF
+#endif
+
+
 #define PCALLOC apr_pcalloc
 #define SNPRINTF apr_snprintf
 #define PSTRDUP apr_pstrdup
 #define PSTRNDUP apr_pstrndup
+
+#ifdef APACHE24
+#define STRCAT apr_pstrcat
+#else
 #define STRCAT ap_pstrcat
+#endif
 #define POOL apr_pool_t
 #include "http_request.h"   /* for ap_hook_(check_user_id | auth_checker)*/
 #include "ap_compat.h"
@@ -266,7 +282,7 @@
 #if _AES  /* Only needed if AES encryption desired */
 #include <my_global.h>
 #endif
-#include <mysql.h>
+#include <mysql/mysql.h>
 #if _AES
 #include <my_aes.h>
 #endif
@@ -940,7 +956,11 @@ static char * format_remote_host(request_rec * r, char ** parm)
 
 static char * format_remote_ip(request_rec * r, char ** parm)
 {
+#ifdef APACHE24
+	return r->connection->client_ip;
+#else
 	return r->connection->remote_ip;
+#endif
 }
 
 static char * format_filename(request_rec * r, char ** parm)
