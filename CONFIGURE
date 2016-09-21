@@ -188,6 +188,7 @@ AuthMySQLPwEncryption none | crypt | scrambled | md5 | aes | sha1
     md5: MD5 hashing
     aes: Advanced Encryption Standard (AES) encryption
     sha1: Secure Hash Algorihm (SHA1)
+    argon2i: PHC winner and the most secure password storage algorithm from the list above 
 
   WARNING: When using aes encryption, the password field MUST be a BLOB type
   (i.e.  TINYBLOB).  MySQL will strip trailing x'20' characters (blanks), EVEN
@@ -202,7 +203,7 @@ AuthMySQLSaltField <> | <string> | mysql_column_name
     mysql_column_name: the salt is take from the mysql_column_name field in the
       same row as the password
 
-  This field is required for aes encryption, optional for crypt encryption.
+  This field is required for aes and argon2i encryption, optional for crypt encryption.
   It is ignored for all other encryption types.
 
 AuthMySQLGroupTable 

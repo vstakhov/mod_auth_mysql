@@ -7,3 +7,5 @@ Please see the BUILD file for instructions on how to build mod_auth_mysql.
 See the file INSTALL for instructions on how to install the module
 
 See the file CONFIGURE for options in configuring the module on Apache.
+
+This module can work with the recent apache versions and supports "argon2i" hashing scheme.
