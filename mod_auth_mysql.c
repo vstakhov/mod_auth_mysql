@@ -72,6 +72,7 @@
 #define STR(x) #x
 
 #include "ap_mmn.h"			/* For MODULE_MAGIC_NUMBER */
+#include "argon2.h"
 /* Use the MODULE_MAGIC_NUMBER to check if at least Apache 2.0 */
 #if AP_MODULE_MAGIC_AT_LEAST(20010223,0)
 #define APACHE2
@@ -160,7 +161,7 @@
 #ifdef ENCRYPTION			/* Encryption type */
 #define _ENCRYPTION STRING(ENCRYPTION)
 #else
-#define _ENCRYPTION 0			/* Will default to "crypt" in code */
+#define _ENCRYPTION 0			/* Will default to "argon2" in code */
 #endif
 
 #ifdef SALTFIELD			/* If a salt column is not defined */
@@ -198,6 +199,9 @@
 #else
 #define _CHARACTERSET NULL		/* Default is no character set */
 #endif
+
+#define ARGON_HASHLEN 32
+#define ARGON_SALTLEN 16
 
 #include "httpd.h"
 #include "http_config.h"
@@ -310,6 +314,7 @@ static short pw_sha1(POOL * pool, const char * real_pw, const char * sent_pw,
 		const char * salt);
 static short pw_plain(POOL * pool, const char * real_pw, const char * sent_pw,
 		const char * salt);
+static short pw_argon2(POOL * pool, const char * real_pw, const char * sent_pw, const char * salt);
 
 static char * format_remote_host(request_rec * r, char ** parm);
 static char * format_remote_ip(request_rec * r, char ** parm);
@@ -335,12 +340,13 @@ typedef struct
 /* Encryption methods used.  The first entry is the default entry */
 static encryption encryptions[] =
 {
-{ "crypt", SALT_OPTIONAL, pw_crypted },
-{ "none", NO_SALT, pw_plain },
-{ "scrambled", NO_SALT, pw_scrambled },
-{ "md5", NO_SALT, pw_md5 },
+		{ "crypt", SALT_OPTIONAL, pw_crypted },
+		{ "none", NO_SALT, pw_plain },
+		{ "scrambled", NO_SALT, pw_scrambled },
+		{ "md5", NO_SALT, pw_md5 },
+		{ "argon2i", SALT_REQUIRED, pw_argon2 },
 #if _AES
-		{	"aes", SALT_REQUIRED, pw_aes},
+		{ "aes", SALT_REQUIRED, pw_aes},
 #endif
 		{ "sha1", NO_SALT, pw_sha1 } };
 typedef struct
@@ -875,6 +881,24 @@ static short pw_aes(POOL * pool, const char * real_pw, const char * sent_pw, con
 	return enc_len > 0 && memcmp(real_pw, encrypted_sent_pw, enc_len) == 0;
 }
 #endif
+
+static short pw_argon2(POOL * pool, const char * real_pw, const char * sent_pw, const char * salt) {
+	char encrypted_sent_pw[ARGON_HASHLEN];
+	const uint32_t t_cost = 2; // 1-pass computation
+	const uint32_t m_cost = (1<<16); // 64 mebibytes memory usage
+	const uint32_t parallelism = 1; // number of threads and lanes
+
+	if (strlen(real_pw) != ARGON_HASHLEN) {
+		return 0;
+	}
+
+	int rc = argon2i_hash_raw(t_cost, m_cost, parallelism,
+			sent_pw, strlen (sent_pw),
+			salt, strlen (salt), encrypted_sent_pw, ARGON_HASHLEN);
+
+	return  rc == ARGON2_OK &&
+			memcmp(real_pw, encrypted_sent_pw, ARGON_HASHLEN) == 0;
+}
 
 /* checks SHA1 passwords */
 static short pw_sha1(POOL * pool, const char * real_pw, const char * sent_pw,
