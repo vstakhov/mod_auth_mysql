@@ -937,7 +937,7 @@ static char * str_format(request_rec * r, char * input)
 		if (!found) {
 			LOG_ERROR_2(APLOG_ERR | APLOG_NOERRNO, 0, r,
 					"MySQL ERROR: Invalid formatting character at position %d: \"%s\"",
-					pos - output, output);
+					(int)(pos - output), output);
 			return input;
 		}
 	}
@@ -1368,7 +1368,11 @@ static int mysql_check_auth(request_rec *r)
 	int method = r->method_number;
 
 #ifdef APACHE2
+#ifdef APACHE24
+	const apr_array_header_t *reqs_arr = NULL;
+#else
 	const apr_array_header_t *reqs_arr = ap_requires(r);
+#endif
 #else
 	const array_header *reqs_arr = ap_requires (r);
 #endif
